@@ -38,47 +38,56 @@ void drawSpider(Scorpion  spider, Options options) {
     sphere(SPIDER_WIDTH / 2);
     popMatrix();
 
-    // Set the colors for the legs
-    for (int i = 0; i < spider.legs.length; i++) {
-        float shoulderX = getLegShoulderX(spider, i);
-        float shoulderY = spider.y;
-        float legX = spider.legs[i].x;
-        float legY = spider.legs[i].y;
-        float[] elbow = inverseKinematicsWithTwoJoints(
-            shoulderX, shoulderY, legX, legY, options.upper, options.lower, spider.legs[i].direction
-        );
-        
-        // Draw the upper leg segment
-        drawLegSegment(shoulderX, shoulderY, elbow[0], elbow[1], 5, 5);
+ 
+// Drawing the legs
+for (int i = 0; i < spider.legs.length; i++) {
+    float shoulderX = getLegShoulderX(spider, i);
+    float shoulderY = spider.y;
+    float shoulderZ = -options.elevation; // Adjust this value as needed
+    float legX = spider.legs[i].x;
+    float legY = spider.legs[i].y;
+    float legZ = shoulderZ; // You can adjust this value to change the elevation of each leg
 
-        // Draw joint sphere
-        pushMatrix();
-        translate(elbow[0], elbow[1]);
-        fill(50, 35, 20); // Darker color for joints
-        sphere(8);
-        popMatrix();
+    float[] elbow = inverseKinematicsWithTwoJoints(
+        shoulderX, shoulderY, legX, legY, options.upper, options.lower, spider.legs[i].direction
+    );
 
-        // Draw the lower leg segment
-        drawLegSegment(elbow[0], elbow[1], legX, legY, 5, 5);
-    }
+    // Draw the upper leg segment
+    drawLegSegment(shoulderX, shoulderY, shoulderZ, elbow[0], elbow[1], shoulderZ, 5, 5); // Updated to include Z
+
+    // Draw joint sphere
+    pushMatrix();
+    translate(elbow[0], elbow[1], shoulderZ); // Updated to include Z
+    fill(50, 35, 20); // Darker color for joints
+    sphere(8);
+    popMatrix();
+
+    // Draw the lower leg segment
+    drawLegSegment(elbow[0], elbow[1], shoulderZ, legX, legY, legZ, 5, 5); // Updated to include Z
 }
 
-void drawLegSegment(float startX, float startY, float endX, float endY, float r1, float r2) {
+}
+void drawLegSegment(float startX, float startY, float startZ, float endX, float endY, float endZ, float r1, float r2) {
     pushMatrix();
-    translate(startX, startY);
-    float angle = atan2(endY - startY, endX - startX);
-    rotateZ(angle);
-    float h = dist(startX, startY, endX, endY);
+    translate(startX, startY, startZ);
 
-    // Translate by half the length of the segment to center the cylinder
+    float xyAngle = atan2(endY - startY, endX - startX); // Angle in the XY plane
+    float xzAngle = atan2(endZ - startZ, dist(startX, startY, endX, endY)); // Angle in the XZ plane
+
+    // Rotate for 3D orientation
+    rotateY(xzAngle);
+    rotateZ(xyAngle);
+
+    float h = dist(startX, startY, startZ, endX, endY, endZ);
     translate(h / 2, 0, 0);
-
-    // Rotate around Y-axis to align cylinder along the calculated angle
     rotateY(PI / 2);
+
     fill(90, 60, 40); // Brownish color for legs
-    drawCustomCylinder(12, r1, r2*0.5, h);
+    drawCustomCylinder(12, r1, r2 * 0.5, h);
+
     popMatrix();
 }
+
 float getLegShoulderX(Scorpion  spider, int i) {
   int sideIndex = i / 2;
   float shoulderSpacing = SPIDER_WIDTH / (spider.legs.length  + 1); // Adjusted for 3D

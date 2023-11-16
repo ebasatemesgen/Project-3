@@ -1,0 +1,276 @@
+// PRM Pathfinding
+PRM prm = new PRM();
+float agent_r = 15;
+Target goal = new Target();
+float carRadius = 15;
+Agent agent = new Agent();
+
+
+
+
+// Terrain 
+int cols, rows;
+int scl = 20; 
+int w = 20000;
+int h = 10000; 
+float[][] terrainLeft;
+
+// Environment 
+int number_building = 15;
+Building[] buildings = new Building[number_building];
+Camera camera;
+
+void setup() {
+    size(1280, 720, P3D);
+    camera = new Camera();
+    frameRate(60);
+    cols = w / scl;
+    rows = h / scl;
+    terrainLeft = new float[cols][rows];
+
+
+    // Initialize goal, agent, and PRM
+    initEnvironment();  
+    // Initialize buildings
+    initBuildings();
+
+   
+}
+
+// Initialization functions for clarity
+void initBuildings() {
+   // initialize goal
+        // find a place to put the goal that doesn't intersect the mountains
+        float r = goal.r;
+    do {
+            goal.x = random( - 500 + r, 500 - r) + width / 2;
+            goal.z = random( - 1000 + r, 0 - r);
+        } while(collision(goal.x, goal.z, r));
+        
+        // initialize agent
+        r = agent_r;
+        agent.body.r = r;
+        agent.body.c = color(255, 0, 0);
+    do {
+            agent.body.x = random( - 500 + r, 500 - r) + width / 2;
+            agent.body.z = random( - 1000 + r, 0 - r);
+        } while(collision(agent.body.x, agent.body.z, r));
+        // initialize the PRM
+        prm.build(buildings, number_building);
+}
+
+void initEnvironment() {
+
+
+
+   
+
+
+    for (int i = 0; i < number_building; i++) {
+        boolean placed = false;
+        while(!placed) {
+            float s = random(50, 250);
+            float x = random( - 500 + s / 2 + agent_r * 4, 500 - s / 2 - agent_r * 4) + width / 2;
+            float z = random( - 1000 + s / 2 + agent_r * 4, 0 - s / 2 - agent_r * 4);
+            boolean isCircular = random(1) < 0.3; // For example, 30% circular
+            
+            if (!collides(x, z, s, buildings)) {
+                buildings[i] = new Building(s, x, z, isCircular);
+                placed = true;
+            }
+        }
+    }
+}
+
+
+
+
+
+void draw() {
+
+            float dt= 1.0 / frameRate;
+            background(255, 178,123);           
+      
+            //updateCameraToFollowAgent(dt);
+             camera.update(dt);
+            // Update agent and draw environment
+            updateAndDrawEnvironment(dt);
+            
+          
+}
+
+
+void updateAndDrawEnvironment(float dt) {
+            float xoffStart = 0.0;
+            float yoffStart = - 1000;
+
+            // update agent
+            agent.update(dt);
+            drawTerrainSegment(terrainLeft,500, -2000, xoffStart, yoffStart); // Left of buildings
+
+            fill(12);
+            pushMatrix();
+            translate(width / 2, height - 90, -500);
+            box(1000, 10, 1000);
+            popMatrix();
+            
+            // draw mountains
+            for (int i = 0; i < number_building; i++) {
+                buildings[i].draw();
+            }
+            
+            // draw PRM
+            prm.draw();
+            goal.draw();
+            
+            // draw agent
+            agent.draw();
+            
+}        
+        
+void drawTerrainSegment(float[][] terrainSegment, float xOffset, float zOffset, float xoffStart, float yoffStart) {
+    float xoff = xoffStart;
+    for (int x = 0; x < cols; x++) {
+        float yoff = yoffStart;
+        for (int y = 0; y < rows; y++) {
+            terrainSegment[x][y] = map(noise(xoff, yoff), 0, 1, -1000, -700);
+            yoff += 0.1;
+        }
+        xoff += 0.1;
+    }
+
+    pushMatrix();
+    
+    
+    
+    translate(width / 2 + xOffset, height / 2 + 100, zOffset);
+    rotateX(PI / 2);
+    background(0, 23,123);
+    fill(200, 200, 200, 150);
+    for (int y = 0; y < rows - 1; y++) {
+        beginShape(TRIANGLE_STRIP);
+        for (int x = 0; x < cols; x++) {
+            vertex(x * scl - w / 2, y * scl - h / 2, terrainSegment[x][y]);
+            vertex(x * scl - w / 2, (y + 1) * scl - h / 2, terrainSegment[x][y + 1]);
+        }
+        endShape();
+        
+    }
+
+    popMatrix();
+}
+
+            
+
+                    
+                    
+                    void updateCameraToFollowAgent(float dt) {
+                         // Define the offset position of the camera relative to the agent
+                          float distanceBehind = 100; // Distance behind the agent
+                          float heightAbove = 50; // Height above the agent
+                        
+                         // Calculate the camera's desired position
+                         float camX = agent.body.x - distanceBehind * agent.dir.x;
+                         float camZ = agent.body.z- distanceBehind * agent.dir.y;
+                         float camY = heightAbove; // Assuming the agent is on a flat plane
+                        
+                         // Update the camera's position smoothly
+                          PVector desiredPosition = new PVector(camX, camY, camZ);
+                          camera.position.lerp(desiredPosition, 0.1); // Adjust lerp factor for smoothness
+                        
+                         // Calculate thetabased on the agent's direction
+                         camera.theta = atan2( - agent.dir.x, -agent.dir.y);
+                        
+                       // Set a fixed phi, or calculate based on the agent's orientation
+                        // For example, looking slightly downward:
+                         camera.phi = -PI /2; // Adjust as needed
+                        
+                         // Update the camera with the new orientation
+                         
+                    }
+                        
+                        
+                        
+                        boolean collision(float x, float z, float r) {
+                          for (int i = 0; i < number_building; i++) {
+                                if (buildings[i].collision(x, z, r)) {
+                                    return true;
+                                }
+                            }
+                                return false;
+                            }
+                                
+                               boolean collides(float newX, float newZ, float newRadius, Building[] buildings) {
+                                for (Building b : buildings){
+                                   if (b != null) {
+                                           float dx = newX - b.x;
+                                           float dz = newZ - b.z;
+                                           float distance = sqrt(dx * dx + dz * dz);
+                                            
+                                            // Use the larger size to ensureno overlap
+                                            float maxBuildingSize = max(b.s,newRadius);
+                                            
+                                           if (distance < maxBuildingSize) {
+                                               return true; // Collision detected
+                                            }
+                                        }
+                                        }
+                                           return false; // No collision
+                                        }
+void keyPressed() {
+    if (key == 'r') {
+        initEnvironment();  // First, reset and initialize the environment
+        initBuildings();    // Then, reset and initialize the buildings
+        prm = new PRM();    // Reinitialize the PRM to clear previous state
+        prm.build(buildings, number_building); // Rebuild the PRM
+    }
+    camera.HandleKeyPressed();
+}
+
+    
+void keyReleased() {
+    camera.HandleKeyReleased();
+}        
+
+PVector rayOriginGlobal;
+PVector rayDirectionGlobal;
+boolean drawRay = false;
+void mousePressed() {
+    PVector rayOrigin = new PVector(camera.position.x, camera.position.y, camera.position.z);
+    PVector rayDirection = getRayDirection(mouseX, mouseY);
+
+    PVector intersectPoint = intersectRayWithXZPlane(rayOrigin, rayDirection);
+
+    if (intersectPoint != null) {
+        // Find the closest node to the intersection point on the xz-plane
+        rayOriginGlobal = rayOrigin;
+        rayDirectionGlobal = rayDirection;
+        drawRay = true;
+        
+        Vec2 intersectPosition = new Vec2(intersectPoint.x, intersectPoint.z); // Assuming y is up, and we use x and z
+        int closestNodeIndex = prm.findClosestNode(intersectPosition);
+
+        if (closestNodeIndex != -1) { // Check if a valid node was found
+            // Set the new goal to this node
+            Node newGoalNode = prm.getNodeAtIndex(closestNodeIndex);
+            goal.x = newGoalNode.x;
+            goal.z = newGoalNode.z;
+
+            // Recalculate the path
+            prm.recalculatePath(agent, goal);
+        }
+    }
+}
+
+
+void mouseReleased() {
+    camera.mouseReleased(); 
+}
+
+void mouseDragged() {
+    camera.mouseDragged(); 
+}
+
+void mouseWheel(MouseEvent event) {
+    camera.mouseWheel(event);
+}

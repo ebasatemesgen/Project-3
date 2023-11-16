@@ -3,7 +3,7 @@ int SPIDER_LEG_LERP_DURATION = 400;
 int number_leg = 8;
 ArrayList<GrassBlade> grass;
 PImage bgImage; 
-
+Camera camera;
 color SCORPION_BROWN = color(139, 69, 19);
 PImage textureImg;
 PShape global;
@@ -35,8 +35,18 @@ public class Scorpion {
         speed = 0;
 
         // Initialize legs
+        //for (int i = 0; i < legs.length; i++) {
+        //    legs[i] = new Leg(x + ((i % 2 == 0) ? -1 : 1) * (40 + (i / 2 * 40)), y, (i % 2 == 0) ? -1 : 1);
+        //}
+        
+        float spreadAngleStep = TWO_PI / legs.length; // Angle step for each leg
         for (int i = 0; i < legs.length; i++) {
-            legs[i] = new Leg(x + ((i % 2 == 0) ? -1 : 1) * (40 + (i / 2 * 40)), y, (i % 2 == 0) ? -1 : 1);
+            float angle = spreadAngleStep * i;
+            // Calculate leg's x, y, and z based on spread angle
+            float legX = x + cos(angle) * SPIDER_WIDTH;
+            float legY = y;
+            float legZ = sin(angle) * SPIDER_WIDTH;
+            legs[i] = new Leg(legX, legY, legZ, (i % 2 == 0) ? -1 : 1, angle);
         }
 
         // Initialize the body tail
@@ -63,18 +73,19 @@ public class Scorpion {
 
 
 class Leg {
-  float x, y;
-  int direction;
-  Lerp lerp;
+    float x, y, z, spreadAngle;
+    int direction;
+    Lerp lerp;
   
-  Leg(float x_, float y_, int direction_) {
-    x = x_;
-    y = y_;
-    direction = direction_;
-    lerp = null;
-  }
+    Leg(float x_, float y_, float z_, int direction_, float angle_) {
+        x = x_;
+        y = y_;
+        z = z_;
+        direction = direction_;
+        spreadAngle = angle_;
+        lerp = null;
+    }
 }
-
 class Lerp {
   float start, from, to;
   
@@ -90,15 +101,15 @@ PVector mousePos = new PVector();
 
 void setup() {
   size(1000, 667, P3D);
-
+ camera = new Camera();
  grass = new ArrayList<GrassBlade>();
-    for (int i = 0; i < 100; i++) { // Create 100 blades of grass
+    for (int i = 0; i < 10000; i++) { // Create 100 blades of grass
         Vec2 root = new Vec2(random(width), height + 20); // Position each blade randomly along the bottom of the screen
         int numLinks = (int) random(2, 5); // Randomly choose between 2 to 5 links
         grass.add(new GrassBlade(root, numLinks));
     }
 
-  bgImage = loadImage("bg.png"); 
+  bgImage = loadImage("bgAFSD.png"); 
   //background(loadImage("bg.gif"));
   scorpion  = new Scorpion (width / 2, height - options.elevation);
    textureImg = loadImage("mars.jpg");
@@ -114,7 +125,7 @@ void setup() {
 
 void draw() {
   //background(255);
-  
+  //float dt = 1.0/frameRate;
   
    // Set the background image
   if (bgImage != null) {
@@ -122,6 +133,9 @@ void draw() {
   } else {
     background(255); // Fallback to a white background if the image is not loaded
   }
+  
+    update(mousePos, scorpion );
+  drawSpider(scorpion , options);
     pushStyle();
     stroke(0, 255, 0); // Example: bright green color
     for (GrassBlade blade : grass) {
@@ -129,9 +143,14 @@ void draw() {
         blade.draw();
     }
    popStyle();
-  update(mousePos, scorpion );
-  drawSpider(scorpion , options);
+
   //println("Drawing Spider at X: " + spider.x + " Y: " + spider.y); // Debugging line
+          pushMatrix();
+        translate(0, 0);
+        fill(50, 35, 20); // Darker color for joints
+        sphere(8);
+        popMatrix();
+      camera.Update(1.0/30.0);
 }
 void mouseMoved() {
   mousePos.x = mouseX;
@@ -222,3 +241,15 @@ float[] inverseKinematicsWithTwoJoints(float startX, float startY, float endX, f
   float elbowY = startY + upperJointLength * sin(angle);
   return new float[]{elbowX, elbowY};
 }
+
+
+
+
+  void keyPressed() {
+      camera.HandleKeyPressed();
+  }
+  
+  void keyReleased() {
+      camera.HandleKeyReleased();
+  }
+  

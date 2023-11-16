@@ -44,10 +44,17 @@ void update() {
         }
     }
     void draw() {
+    
+      
         for (int i = 1; i < joints.size(); i++) {
+           
             Vec2 start = joints.get(i - 1);
             Vec2 end = joints.get(i);
             line(start.x, start.y, end.x, end.y);
+            translate(0,0, -i*0.192);
+             
         }
+        
+        
     }
 }
