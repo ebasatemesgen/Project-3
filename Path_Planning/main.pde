@@ -61,7 +61,7 @@ void initBuildings() {
 
     // Initialize car
     car.car_part.r = CarSize;
-    car.car_part.c = color(255, 0, 0);
+    car.car_part.c = color(255, 123, 345);
     PVector carPosition = findRandomPosition(minX, maxX, minZ, maxZ, CarSize, halfWidth, maxAttempts);
     if (carPosition != null) {
         car.car_part.x = carPosition.x;

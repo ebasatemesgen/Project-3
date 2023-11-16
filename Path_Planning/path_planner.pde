@@ -210,7 +210,7 @@ public class PRM {
         }
         // draw path
         if (car.path.size() == 0) return;
-        stroke(213, 255, 0);
+        stroke(color(255, 0, 0));
         strokeWeight(3);
         // draw from car to the first node
         line(car.car_part.x, height-101, car.car_part.z, nodes[car.path.get(0)].x, height-101, nodes[car.path.get(0)].z);

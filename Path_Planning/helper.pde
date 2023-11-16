@@ -42,7 +42,7 @@ class LandAndSky {
 
 public class Target {
     public float x, z, r;
-    public color c = color(0, 150, 255);
+    public color c = color(0, 255, 0);
     public Target() {
         x = 0;
         z = 0;
