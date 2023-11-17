@@ -1,4 +1,5 @@
-
+import java.util.LinkedList;
+import java.util.HashSet;
 public class PRM {
     public Node[] nodes = new Node[200];
     public int num_nodes = 0;
@@ -35,7 +36,7 @@ public class PRM {
         return closestIndex;
     }
 
-    public void recalculatePath(Vehicle car, Target goal) {
+    public void recalculatePath(AutoVehicle car, AutoComponent goal, int carIndex) {
         // Reset the visited state and parent of each node
         for (int i = 0; i < num_nodes; i++) {
             nodes[i].visited = false;
@@ -43,14 +44,18 @@ public class PRM {
         }
 
         // Find the closest nodes to the Vehicle and the goal
-        int startNodeIndex = findClosestNode(new Vec2(car.car_part.x, car.car_part.z));
+        int startNodeIndex = findClosestNode(new Vec2(car.vehicleComponent.x, car.vehicleComponent.z));
         int goalNodeIndex = findClosestNode(new Vec2(goal.x, goal.z));
 
         // Recalculate the path
         ArrayList<Integer> newPath = runBFS(startNodeIndex, goalNodeIndex);
 
+        // Check for potential collisions and adjust path if necessary
+        if (isCollisionLikely(carIndex)) {
+            newPath = adjustPathToAvoidCollision(newPath, carIndex);
+        }
         // Update the car's path
-        car.path = newPath;
+        car.travelPath = newPath;
     }
 
     // Method to get a node by index
@@ -61,38 +66,117 @@ public class PRM {
         return null; // or handle this scenario appropriately
     }
 
-    private void generate_nodes(Building[] buildings, int num_buildings) {
-        if (num_nodes < nodes.length) {
-            nodes[num_nodes] = new Node(car.car_part.x, car.car_part.z, num_nodes);
-            num_nodes++;
-        }
-        if (num_nodes < nodes.length) {
-            nodes[num_nodes] = new Node(goal.x, goal.z, num_nodes);
-            num_nodes++;
-        }
-        for (int i = 2; i < nodes.length; i++) {
-            nodes[i] = new Node();
-            boolean valid;
-            do {
-                valid = true;
-                // x between -500 and 500
-                float r = car.car_part.r;
-                nodes[i].x = random(-500 + r, 500 - r) + width/2;
-                nodes[i].z = random(-1000 + r, 0 - r);
-                // check if node is in a building
-                for (int j = 0; j < i; j++) {  // Change to `j < i` to avoid checking uninitialized nodes
-                    if (nodes[j] != null && dist(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z) < 50) {
-                        valid = false;
-                        break;  // Exit the inner loop early if too close
-                    }
-                }
-                // check if node is too close to another node
-            } while(!valid);
-            // set id
-            nodes[i].id = i;
-            num_nodes++;
+
+private ArrayList<Integer> adjustPathToAvoidCollision(ArrayList<Integer> originalPath, int carIndex) {
+    ArrayList<Integer> adjustedPath = new ArrayList<>();
+
+    // You may need a more sophisticated approach to identify alternate routes.
+    // This example simply tries to find a new path by excluding the nodes where a collision is likely.
+    HashSet<Integer> collisionNodes = new HashSet<>();
+    for (int i = 0; i < numCars; i++) {
+        if (i != carIndex) {
+            collisionNodes.addAll(cars[i].travelPath);
         }
     }
+
+    // Finding the start and end nodes of the path
+    int startNodeIndex = originalPath.get(0);
+    int goalNodeIndex = originalPath.get(originalPath.size() - 1);
+
+    // Resetting the state of nodes
+    for (Node node : nodes) {
+        node.visited = false;
+        node.parent = -1;
+    }
+
+    // Queue for BFS
+    LinkedList<Integer> queue = new LinkedList<>();
+    queue.add(startNodeIndex);
+    nodes[startNodeIndex].visited = true;
+
+    // BFS loop
+    while (!queue.isEmpty()) {
+        int currentNodeIndex = queue.poll();
+        Node currentNode = nodes[currentNodeIndex];
+
+        if (currentNodeIndex == goalNodeIndex) {
+            break; // Goal found, exit loop
+        }
+
+        for (Node neighbor : currentNode.neighbors) {
+            if (neighbor == null || collisionNodes.contains(neighbor.id)) {
+                continue; // Skip null neighbors or neighbors in collisionNodes
+            }
+
+            int neighborIndex = neighbor.id;
+            if (!nodes[neighborIndex].visited) {
+                nodes[neighborIndex].visited = true;
+                nodes[neighborIndex].parent = currentNodeIndex;
+                queue.add(neighborIndex);
+            }
+        }
+    }
+
+    // Reconstructing the path
+    int current = goalNodeIndex;
+    while (current != -1 && current != startNodeIndex) {
+        adjustedPath.add(0, current);
+        current = nodes[current].parent;
+    }
+
+    if (!adjustedPath.isEmpty()) {
+        adjustedPath.add(0, startNodeIndex);
+    }
+
+    return adjustedPath;
+}
+
+private void generate_nodes(Building[] buildings, int num_buildings) {
+    int nodeIndex = 0;
+
+    // Initialize nodes for each car and goal
+    for (int i = 0; i < numCars; i++) {
+        if (nodeIndex < nodes.length) {
+            // Create a node for the car's position
+            nodes[nodeIndex] = new Node(cars[i].vehicleComponent.x, cars[i].vehicleComponent.z, nodeIndex);
+            nodeIndex++;
+        }
+        if (nodeIndex < nodes.length) {
+            // Create a node for the goal's position
+            nodes[nodeIndex] = new Node(goals[i].x, goals[i].z, nodeIndex);
+            nodeIndex++;
+        }
+    }
+
+    // Generate additional nodes
+    for (int i = numCars * 2; i < nodes.length; i++) {
+        nodes[i] = new Node();
+        boolean valid;
+        do {
+            valid = true;
+            int length_x = 700;
+            int length_z = 1000;
+            float r = car_length; // Assuming car_length is available globally
+            nodes[i].x = random(-length_x + r, length_x - r) + width/2;
+            nodes[i].z = random(-length_z + r, 0 - r);
+
+            // Check if node is too close to a building or another node
+            for (int j = 0; j < i; j++) {
+                if (dist(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z) < 50) {
+                    valid = false;
+                    break;
+                }
+            }
+        } while (!valid);
+
+        // Set node ID
+        nodes[i].id = i;
+        nodeIndex++;
+    }
+
+    num_nodes = nodeIndex; // Update the count of nodes
+}
+
 
     private void connect_nodes(Building[] buildings, int num_buildings) {
         for (int i = 0; i < num_nodes; i++) {
@@ -103,7 +187,7 @@ public class PRM {
                     if (dist(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z) > 200) valid = false;
                     // check if there is a building between the nodes
                     for (int k = 0; k < num_buildings; k++) {
-                        if (buildings[k].collision_line(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z)) valid = false;
+                        if (buildings[k].intersectsPath(nodes[i].x, nodes[i].z, nodes[j].x, nodes[j].z)) valid = false;
                     }
                     if (valid) {
                         nodes[i].add_neighbor(nodes[j]);
@@ -155,72 +239,117 @@ public class PRM {
         }
 
         // Path reconstruction from goal to start
-        ArrayList<Integer> path = new ArrayList<>();
+        ArrayList<Integer> travelPath = new ArrayList<>();
         int current = goalNodeIndex;
         while (current != -1) {
-            path.add(0, current); // Use ArrayList's add method
+            travelPath.add(0, current); // Use ArrayList's add method
             current = parent[current];
         }
-        return path;
+        return travelPath;
     }
 
-    // BFS
-    void run_BFS() {
-        int start = 0;
-        int goal = 1;
-        ArrayList<Integer> fringe = new ArrayList();  // Make a new, empty fringe
-        car.path = new ArrayList(); // Reset path
-        nodes[start].visited = true;
-        fringe.add(start);
+void run_BFS() {
+    // Loop through each car
+    for (int carIndex = 0; carIndex < numCars; carIndex++) {
+        // For each car, reset the visited and parent properties of the nodes
+        for (Node node : nodes) {
+            node.visited = false;
+            node.parent = -1;
+        }
 
-        while (fringe.size() > 0) {
-            int currentNode = fringe.get(0);
-            fringe.remove(0);
-            if (currentNode == goal) {
-                println("Goal found!");
-                break;
+        // Set the start and goal indices for the current car
+        int startNodeIndex = carIndex * 2; // Assuming first node for each car
+        int goalNodeIndex = startNodeIndex + 1; // Assuming next node is the goal
+
+        // Initialize fringe and path for the current car
+        ArrayList<Integer> fringe = new ArrayList<Integer>();
+        cars[carIndex].travelPath = new ArrayList<Integer>();
+        nodes[startNodeIndex].visited = true;
+        fringe.add(startNodeIndex);
+
+        // BFS loop
+        while (!fringe.isEmpty()) {
+            int currentNode = fringe.remove(0);
+            if (currentNode == goalNodeIndex) {
+                break; // Goal found for this car
             }
-            for (int i = 0; i < nodes[currentNode].num_neighbors; i++) {
-                int j = nodes[currentNode].neighbors[i].id;
-                if (!nodes[j].visited) {
-                    nodes[j].visited = true;
-                    nodes[j].parent = currentNode;
-                    fringe.add(j);
+            for (Node neighbor : nodes[currentNode].neighbors) {
+                if (neighbor != null && !nodes[neighbor.id].visited) {
+                    nodes[neighbor.id].visited = true;
+                    nodes[neighbor.id].parent = currentNode;
+                    fringe.add(neighbor.id);
                 }
             }
         }
 
-        int prevNode = nodes[goal].parent;
-        car.path.add(0, goal);
-        while (prevNode >= 0) {
-            print(prevNode, " ");
-            car.path.add(0, prevNode);
+        // Reconstruct path from goal to start
+        int prevNode = nodes[goalNodeIndex].parent;
+        cars[carIndex].travelPath.add(0, goalNodeIndex);
+        while (prevNode != -1) {
+            cars[carIndex].travelPath.add(0, prevNode);
             prevNode = nodes[prevNode].parent;
         }
 
-        // if the path only has 1 node, then there is no path
-        if (car.path.size() == 1) {
-            car.path = new ArrayList();
+        // Check if the travelPath is valid
+        if (cars[carIndex].travelPath.size() == 1) {
+            cars[carIndex].travelPath.clear();
+        }
+    }
+}
+
+
+public void draw() {
+    // Draw all nodes
+    for (int i = 0; i < num_nodes; i++) {
+        nodes[i].draw();
+    }
+
+    // Loop through each car to draw its travel path
+    for (int carIndex = 0; carIndex < numCars; carIndex++) {
+        ArrayList<Integer> travelPath = cars[carIndex].travelPath;
+
+        // Check if the car has a travel path
+        if (travelPath.size() == 0) continue;
+
+        // Set color and stroke weight for the path
+        stroke(color(255, 0, 0)); // Red color for the path
+        strokeWeight(3);
+
+        // Draw the path from the car to the first node
+        line(cars[carIndex].vehicleComponent.x, height-101, cars[carIndex].vehicleComponent.z, nodes[travelPath.get(0)].x, height-101, nodes[travelPath.get(0)].z);
+
+        // Draw the rest of the path
+        for (int i = 0; i < travelPath.size() - 1; i++) {
+            int a = travelPath.get(i);
+            int b = travelPath.get(i + 1);
+            line(nodes[a].x, height-101, nodes[a].z, nodes[b].x, height-101, nodes[b].z);
         }
     }
 
-    public void draw() {
-        for (int i = 0; i < num_nodes; i++) {
-            nodes[i].draw();
+    // Reset stroke settings
+    noStroke();
+}
+}
+
+
+public boolean isCollisionLikely(int carIndex) {
+    AutoVehicle currentCar = cars[carIndex];
+    ArrayList<Integer> currentPath = currentCar.travelPath;
+
+    for (int otherCarIndex = 0; otherCarIndex < numCars; otherCarIndex++) {
+        if (otherCarIndex == carIndex) continue; // Skip the same car
+
+        AutoVehicle otherCar = cars[otherCarIndex];
+        ArrayList<Integer> otherPath = otherCar.travelPath;
+
+        // Check if paths intersect
+        for (Integer currentNodeIndex : currentPath) {
+            if (otherPath.contains(currentNodeIndex)) {
+                return true; // Paths intersect, potential collision
+            }
         }
-        // draw path
-        if (car.path.size() == 0) return;
-        stroke(color(255, 0, 0));
-        strokeWeight(3);
-        // draw from car to the first node
-        line(car.car_part.x, height-101, car.car_part.z, nodes[car.path.get(0)].x, height-101, nodes[car.path.get(0)].z);
-        for (int i = 0; i < car.path.size()-1; i++) {
-            int a = car.path.get(i);
-            int b = car.path.get(i+1);
-            line(nodes[a].x, height-101, nodes[a].z, nodes[b].x, height-101, nodes[b].z);
-        }
-        noStroke();
     }
+    return false; // No likely collision detected
 }
 
 

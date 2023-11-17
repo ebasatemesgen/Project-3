@@ -5,12 +5,14 @@ boolean followCar = false;
 // PRM Pathfinding
 PRM prm = new PRM();
 float car_length = 15;
-Target goal = new Target();
+//AutoComponent goal = new AutoComponent();
 float CarSize = 15;
-Vehicle car = new Vehicle();
+//AutoVehicle car = new AutoVehicle();
 boolean canUpdate = false;
 
-
+int numCars = 4;
+AutoVehicle[] cars = new AutoVehicle[numCars];
+AutoComponent[] goals = new AutoComponent[numCars];
 
 // Terrain 
 int cols, rows;
@@ -25,7 +27,7 @@ Building[] buildings = new Building[number_building];
 Camera camera;
 
 void setup() {
-    size(1280, 720, P3D);
+    size(1000, 1000, P3D);
     camera = new Camera();
     frameRate(60);
     cols = w / scl;
@@ -44,33 +46,39 @@ void setup() {
 void initBuildings() {
     // Initialize parameters
     int maxAttempts = 100; // Maximum number of attempts to find a collision-free position
-    float goalRadius = goal.r;
-    float CarSize = car_length;
-    float minX = -500;
-    float maxX = 500;
+    float carSize = car_length;
+    float minX = -700;
+    float maxX = 700;
     float minZ = -1000;
     float maxZ = 0;
     float halfWidth = width / 2;
 
-    // Initialize goal
-    PVector goalPosition = findRandomPosition(minX, maxX, minZ, maxZ, goalRadius, halfWidth, maxAttempts);
-    if (goalPosition != null) {
-        goal.x = goalPosition.x;
-        goal.z = goalPosition.y; // Assuming y here represents the z-axis in your 3D world
-    }
 
-    // Initialize car
-    car.car_part.r = CarSize;
-    car.car_part.c = color(255, 123, 345);
-    PVector carPosition = findRandomPosition(minX, maxX, minZ, maxZ, CarSize, halfWidth, maxAttempts);
-    if (carPosition != null) {
-        car.car_part.x = carPosition.x;
-        car.car_part.z = carPosition.y; // Assuming y here represents the z-axis in your 3D world
+    //cars = new AutoVehicle[numCars];
+    //goals = new AutoComponent[numCars];
+
+    for (int i = 0; i < numCars; i++) {
+        // Initialize each goal with random position
+        float goalRadius = 50; // Adjust as needed
+        PVector goalPosition = findRandomPosition(minX, maxX, minZ, maxZ, goalRadius, halfWidth, maxAttempts);
+        if (goalPosition != null) {
+            goals[i] = new AutoComponent(goalPosition.x, goalPosition.y, goalRadius); // Assuming y here represents the z-axis
+        }
+
+        // Initialize each car with random position
+        PVector carPosition = findRandomPosition(minX, maxX, minZ, maxZ, carSize, halfWidth, maxAttempts);
+        if (carPosition != null) {
+            cars[i] = new AutoVehicle();
+            cars[i].vehicleComponent = new AutoComponent(carPosition.x, carPosition.y, carSize); // Assuming y here represents the z-axis
+            cars[i].vehicleComponent.c = color(random(255), random(255), random(255)); // Random color for each car
+            cars[i].goal = goals[i]; // Assign corresponding goal to each car
+        }
     }
 
     // Initialize the PRM
     prm.build(buildings, number_building);
 }
+
 
 PVector findRandomPosition(float minX, float maxX, float minZ, float maxZ, float radius, float halfWidth, int maxAttempts) {
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
@@ -86,33 +94,6 @@ PVector findRandomPosition(float minX, float maxX, float minZ, float maxZ, float
 
 
 
-void initEnvironment() {
-    int maxBuildingSideLength = 250; // Maximum side length for buildings
-    int minBuildingSideLength = 50;  // Minimum side length for buildings
-    int minPosX = -500;              // Minimum x-position for buildings
-    int maxPosX = 500;               // Maximum x-position for buildings
-    int minPosZ = -1000;             // Minimum z-position for buildings
-    int maxPosZ = 0;                 // Maximum z-position for buildings
-    float halfScreenWidth = width / 2; // Half the width of the screen
-    float buildingPlacementBuffer = car_length * 4; // Buffer to prevent overlap with car
-
-    for (int buildingIndex = 0; buildingIndex < number_building; buildingIndex++) {
-        boolean buildingPlaced = false;
-        while (!buildingPlaced) {
-            float buildingSize = random(minBuildingSideLength, maxBuildingSideLength);
-            float posX = random(minPosX + buildingSize / 2 + buildingPlacementBuffer, 
-                                maxPosX - buildingSize / 2 - buildingPlacementBuffer) + halfScreenWidth;
-            float posZ = random(minPosZ + buildingSize / 2 + buildingPlacementBuffer, 
-                                maxPosZ - buildingSize / 2 - buildingPlacementBuffer);
-            boolean isCircularBuilding = random(1) < 0.3; // 30% chance of being circular
-
-            if (!collides(posX, posZ, buildingSize, buildings)) {
-                buildings[buildingIndex] = new Building(buildingSize, posX, posZ, isCircularBuilding);
-                buildingPlaced = true;
-            }
-        }
-    }
-}
 
 
 
@@ -127,9 +108,9 @@ void draw() {
              camera.update(dt);
             // Update car and draw environment
             updateAndDrawEnvironment(dt);
-            if (followCar) {
-                updateCameraToFollowCar(dt);
-            }
+            //if (followCar) {
+            //    updateCameraToFollowCar(dt);
+            //}
             
             // Mouse Clicking on Node not working for me
             
@@ -154,30 +135,45 @@ void updateAndDrawEnvironment(float deltaTime) {
     float terrainOffsetXStart = 0.0;
     float terrainOffsetYStart = -1000;
 
-    // Update the car
-    car.update(deltaTime);
-
     // Draw the terrain segments
-    drawTerrainSegment(terrainLeft, 500, -2000, terrainOffsetXStart, terrainOffsetYStart); // Left of buildings
+    drawTerrainSegment(terrainLeft, 700, -2000, terrainOffsetXStart, terrainOffsetYStart); // Left of buildings
+
     // Draw the Probabilistic Road Map (PRM)
     prm.draw();
+
     // Draw a base platform in the center
     fill(12); // Dark color for the platform
     pushMatrix();
-    translate(width / 2, height - 90, -500); 
-    box(1000, 10, 1000); 
+    translate(width / 2, height - 90, -700); 
+    box(2000, 10, 2000); 
     popMatrix();
 
-
-    // Draw the goal position
-    goal.draw();
     // Draw each building
     for (int buildingIndex = 0; buildingIndex < number_building; buildingIndex++) {
         buildings[buildingIndex].draw();
     }
-    // Draw the car
-    car.draw();
+
+    // Loop through each car and goal
+    for (int i = 0; i < numCars; i++) {
+        // Update and draw each car
+        cars[i].update(deltaTime);
+        cars[i].render();
+
+        // Draw the corresponding goal for each car
+        goals[i].draw();
+    }
+    
+    for (int i = 0; i < numCars; i++) {
+        if (isCollisionLikely(i)) {
+                for (int carIndex = 0; carIndex < numCars; carIndex++) {
+                    AutoVehicle car = cars[carIndex];
+                    AutoComponent goal = car.goal;
+                    prm.recalculatePath(car, goal, carIndex);
+                }
+        }
+    }
 }
+
       
         
 void drawTerrainSegment(float[][] terrainSegment, float xOffset, float zOffset, float xoffStart, float yoffStart) {
@@ -209,22 +205,7 @@ void drawTerrainSegment(float[][] terrainSegment, float xOffset, float zOffset, 
     popMatrix();
 }
 
-            
-
-                    
-
-                     
-                        
-
-boolean collision(float x, float z, float r) {
-    for (int i = 0; i < number_building; i++) {
-        if (buildings[i].collision(x, z, r)) {
-            return true;
-        }
-    }
-        return false;
-    }
-        
+ 
 boolean collides(float newX, float newZ, float newRadius, Building[] buildings) {
     for (Building b : buildings){
         if (b != null) {
@@ -233,7 +214,7 @@ boolean collides(float newX, float newZ, float newRadius, Building[] buildings) 
             float distance = sqrt(dx * dx + dz * dz);
             
             // Use the larger size to ensureno overlap
-            float maxBuildingSize = max(b.s,newRadius);
+            float maxBuildingSize = max(b.size_of_buildin,newRadius);
             
             if (distance < maxBuildingSize) {
                 return true; // Collision detected
@@ -285,15 +266,15 @@ void mousePressed() {
         Vec2 intersectPosition = new Vec2(intersectPoint.x, intersectPoint.z); // Assuming y is up, and we use x and z
         int closestNodeIndex = prm.findClosestNode(intersectPosition);
 
-        if (closestNodeIndex != -1) { // Check if a valid node was found
-            // Set the new goal to this node
-            Node newGoalNode = prm.getNodeAtIndex(closestNodeIndex);
-            goal.x = newGoalNode.x;
-            goal.z = newGoalNode.z;
+        //if (closestNodeIndex != -1) { // Check if a valid node was found
+        //    // Set the new goal to this node
+        //    Node newGoalNode = prm.getNodeAtIndex(closestNodeIndex);
+        //    goal.x = newGoalNode.x;
+        //    goal.z = newGoalNode.z;
 
-            // Recalculate the path
-            prm.recalculatePath(car, goal);
-        }
+        //    // Recalculate the path
+        //    prm.recalculatePath(car, goal);
+        //}
     }
 }
 

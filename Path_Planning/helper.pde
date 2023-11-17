@@ -40,15 +40,15 @@ class LandAndSky {
     }
 }
 
-public class Target {
+public class AutoComponent {
     public float x, z, r;
     public color c = color(0, 255, 0);
-    public Target() {
+    public AutoComponent() {
         x = 0;
         z = 0;
         r = 50;
     }
-    public Target(float x, float z, float r) {
+    public AutoComponent(float x, float z, float r) {
         this.x = x;
         this.z = z;
         this.r = r;
@@ -107,6 +107,46 @@ void drawCircle(int resolution, float radius, float z) {
         vertex(radius * cos(angle), radius * sin(angle), z);
     }
     endShape(CLOSE);
+}
+void initEnvironment() {
+
+
+
+for (int i = 0; i < numCars; i++) {
+    // Initialize each goal
+    goals[i] = new AutoComponent(/* position and radius arguments */);
+
+    // Initialize each car with its goal
+    cars[i] = new AutoVehicle(goals[i]);
+}
+
+
+
+    int maxBuildingSideLength = 200; // Maximum side length for buildings
+    int minBuildingSideLength = 100;  // Minimum side length for buildings
+    int minPosX = -700;              // Minimum x-position for buildings
+    int maxPosX = 700;               // Maximum x-position for buildings
+    int minPosZ = -1000;             // Minimum z-position for buildings
+    int maxPosZ = 0;                 // Maximum z-position for buildings
+    float halfScreenWidth = width / 2; // Half the width of the screen
+    float buildingPlacementBuffer = car_length * 4; // Buffer to prevent overlap with car
+
+    for (int buildingIndex = 0; buildingIndex < number_building; buildingIndex++) {
+        boolean buildingPlaced = false;
+        while (!buildingPlaced) {
+            float buildingSize = random(minBuildingSideLength, maxBuildingSideLength);
+            float posX = random(minPosX + buildingSize / 2 + buildingPlacementBuffer, 
+                                maxPosX - buildingSize / 2 - buildingPlacementBuffer) + halfScreenWidth;
+            float posZ = random(minPosZ + buildingSize / 2 + buildingPlacementBuffer, 
+                                maxPosZ - buildingSize / 2 - buildingPlacementBuffer);
+            boolean isCircularBuilding = random(1) < 0.3; // 30% chance of being circular
+
+            if (!collides(posX, posZ, buildingSize, buildings)) {
+                buildings[buildingIndex] = new Building(buildingSize, posX, posZ, isCircularBuilding);
+                buildingPlaced = true;
+            }
+        }
+    }
 }
 
 PVector getRayDirection(float mouseX, float mouseY) {
@@ -245,7 +285,15 @@ boolean checkSegmentsIntersect(Segment s1, Segment s2) {
     int dir4 = getOrientation(s1.x1, s1.y1, s1.x2, s1.y2, s2.x2, s2.y2);
     return (dir1 != dir2 && dir3 != dir4);
 }
-
+boolean collision(float x, float z, float r) {
+    for (int i = 0; i < number_building; i++) {
+        if (buildings[i].collision(x, z, r)) {
+            return true;
+        }
+    }
+        return false;
+    }
+       
 boolean checkSegmentRectangle(Segment seg, Rectangle rect) {
     Segment[] sides = new Segment[4];
     float halfWidth = rect.width / 2;
@@ -288,26 +336,26 @@ PVector intersectRayWithXZPlane(PVector rayOrigin, PVector rayDirection) {
 
     return null; // No intersection with the xz-plane in the direction of the ray
 }
-void updateCameraToFollowCar(float dt) {
-     // Define the offset position of the camera relative to the car
-      float distanceBehind = 100; // Distance behind the car
-      float heightAbove = 50; // Height above the car
+//void updateCameraToFollowCar(float dt) {
+//     // Define the offset position of the camera relative to the car
+//      float distanceBehind = 100; // Distance behind the car
+//      float heightAbove = 50; // Height above the car
     
-     // Calculate the camera's desired position
-     float camX = car.car_part.x - distanceBehind * car.dir.x;
-     float camZ = car.car_part.z- distanceBehind * car.dir.y;
-     float camY = heightAbove; // Assuming the car is on a flat plane
+//     // Calculate the camera's desired position
+//     float camX = car.vehicleComponent.x - distanceBehind * car.currentDirection.x;
+//     float camZ = car.vehicleComponent.z- distanceBehind * car.currentDirection.y;
+//     float camY = heightAbove; // Assuming the car is on a flat plane
     
-     // Update the camera's position smoothly
-      PVector desiredPosition = new PVector(camX, camY, camZ);
-      camera.position.lerp(desiredPosition, 0.1); // Adjust lerp factor for smoothness
+//     // Update the camera's position smoothly
+//      PVector desiredPosition = new PVector(camX, camY, camZ);
+//      camera.position.lerp(desiredPosition, 0.1); // Adjust lerp factor for smoothness
     
-     // Calculate thetabased on the car's direction
-     camera.theta = atan2( - car.dir.x, -car.dir.y);
+//     // Calculate thetabased on the car's direction
+//     camera.theta = atan2( - car.currentDirection.x, -car.currentDirection.y);
     
-     camera.phi = -PI /2; // Adjust as needed
+//     camera.phi = -PI /2; // Adjust as needed
     
-     // Update the camera with the new orientation
+//     // Update the camera with the new orientation
      
-}
+//}
    
