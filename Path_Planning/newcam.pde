@@ -1,16 +1,16 @@
-// Created for CSCI 5611 by Liam Tyler
-
 class Camera
 {
   Camera()
   {
-    position      = new PVector( 0, 0, 0 ); // initial position
-    theta         = 0; // rotation around Y axis. Starts with forward direction as ( 0, 0, -1 )
-    phi           = 0; // rotation around X axis. Starts with up direction as ( 0, 1, 0 )
+    position      = new PVector( 77.46816, 93.92143, 251.75182  ); // initial position
+    theta         =  -698.0632 ; // rotation around Y axis. Starts with forward direction as ( 0, 0, -1 )
+    phi           = -0.7479067; // rotation around X axis. Starts with up direction as ( 0, 1, 0 )  
+
     moveSpeed     = 50;
     turnSpeed     = 1.57; // radians/sec
-    
+    boostSpeed    = 10; 
     // dont need to change these
+    shiftPressed = false;
     negativeMovement = new PVector( 0, 0, 0 );
     positiveMovement = new PVector( 0, 0, 0 );
     negativeTurn     = new PVector( 0, 0 ); // .x for theta, .y for phi
@@ -21,7 +21,19 @@ class Camera
     farPlane         = 10000;
   }
   
-  void update(float dt)
+      PVector getTarget() {
+        // Calculate forward direction based on theta and phi
+        float t = theta + PI / 2;
+        float p = phi + PI / 2;
+        PVector forwardDir = new PVector( sin( p ) * cos( t ),   cos( p ),   -sin( p ) * sin ( t ) );
+        
+        // Compute a target position by offsetting camera's position using the forward direction
+        // Here we use a factor of 10.0 to define how far in front of the camera the target is.
+        PVector target = PVector.add(position, PVector.mult(forwardDir, 10.0));
+        return target;
+    }
+  
+  void Update(float dt)
   {
     theta += turnSpeed * ( negativeTurn.x + positiveTurn.x)*dt;
     
@@ -37,10 +49,6 @@ class Camera
     PVector upDir      = new PVector( sin( phi ) * cos( t ), cos( phi ), -sin( t ) * sin( phi ) );
     PVector rightDir   = new PVector( cos( theta ), 0, -sin( theta ) );
     PVector velocity   = new PVector( negativeMovement.x + positiveMovement.x, negativeMovement.y + positiveMovement.y, negativeMovement.z + positiveMovement.z );
-    forward = forwardDir;
-    up = upDir;
-    right = rightDir;
-   
     position.add( PVector.mult( forwardDir, moveSpeed * velocity.z * dt ) );
     position.add( PVector.mult( upDir,      moveSpeed * velocity.y * dt ) );
     position.add( PVector.mult( rightDir,   moveSpeed * velocity.x * dt ) );
@@ -50,6 +58,11 @@ class Camera
     camera( position.x, position.y, position.z,
             position.x + forwardDir.x, position.y + forwardDir.y, position.z + forwardDir.z,
             upDir.x, upDir.y, upDir.z );
+            
+            
+    println(" Postion",  position.x, position.y, position.z); 
+    
+    println(" Angles", theta, phi);
   }
   
   // only need to change if you want difrent keys for the controls
@@ -62,10 +75,24 @@ class Camera
     if ( key == 'q' || key == 'Q' ) positiveMovement.y = 1;
     if ( key == 'e' || key == 'E' ) negativeMovement.y = -1;
     
+    if ( key == 'r' || key == 'R' ){
+      Camera defaults = new Camera();
+      position = defaults.position;
+      theta = defaults.theta;
+      phi = defaults.phi;
+    }
+    
     if ( keyCode == LEFT )  negativeTurn.x = 1;
     if ( keyCode == RIGHT ) positiveTurn.x = -0.5;
     if ( keyCode == UP )    positiveTurn.y = 0.5;
     if ( keyCode == DOWN )  negativeTurn.y = -1;
+    
+    if ( keyCode == SHIFT ) shiftPressed = true; 
+    if (shiftPressed){
+      positiveMovement.mult(boostSpeed);
+      negativeMovement.mult(boostSpeed);
+    }
+    
   }
   
   // only need to change if you want difrent keys for the controls
@@ -82,72 +109,13 @@ class Camera
     if ( keyCode == RIGHT ) positiveTurn.x = 0;
     if ( keyCode == UP    ) positiveTurn.y = 0;
     if ( keyCode == DOWN  ) negativeTurn.y = 0;
-  }
-  
-  void mousePressed(){
-     if(mouseButton == CENTER){
-         translation = true;
-     }
-     if(mouseButton == RIGHT){
-         rotation = true;
-         rotationStartPos = new Vec2(mouseX,mouseY);
-     }
-  }
-  void mouseReleased(){
-       translation = false;
-       rotation = false; 
-     
-  }
-  void mouseDragged(){
-    if(translation){
-        PVector moved = new PVector((mouseX-pmouseX)* 1/frameRate,(mouseY-pmouseY)* 1/frameRate,0);
-        PVector ymoved = PVector.mult(up, moved.dot(up)/(up.magSq()) * moveSpeed/5);
-        PVector xmoved = PVector.mult(right, moved.dot(right)/(right.magSq()) * moveSpeed/5);
-        position.add(ymoved);
-        position.add(xmoved);
-    }
-    if(rotation){
-        float xOffset = mouseX - rotationStartPos.x;
-        float yOffset = mouseY - rotationStartPos.y;
-        rotationStartPos = new Vec2(mouseX,mouseY);
-        
-        xOffset *= turnSpeed;
-        yOffset *= turnSpeed;
-        
-        theta += radians(xOffset) * 1/frameRate;
-        
-        float maxAngleInRadians = 85 * PI / 180;
-        phi = min( maxAngleInRadians, max(-maxAngleInRadians, phi + radians(yOffset) * 1/frameRate ));
-        
-        float t = theta + PI / 2;
-        float p = phi + PI / 2;
-        PVector forwardDir = new PVector( sin( p ) * cos( t ),   cos( p ),   -sin( p ) * sin ( t ) );
-        PVector upDir      = new PVector( sin( phi ) * cos( t ), cos( phi ), -sin( t ) * sin( phi ) );
-        PVector rightDir   = new PVector( cos( theta ), 0, -sin( theta ) );
-        forward = forwardDir;
-        up = upDir;
-        right = rightDir;
-        
-        aspectRatio = width / (float) height;
-        perspective( fovy, aspectRatio, nearPlane, farPlane );
-        camera( position.x, position.y, position.z,
-                position.x + forwardDir.x, position.y + forwardDir.y, position.z + forwardDir.z,
-                upDir.x, upDir.y, upDir.z );
+    
+    if ( keyCode == SHIFT ){
+      shiftPressed = false;
+      positiveMovement.mult(1.0/boostSpeed);
+      negativeMovement.mult(1.0/boostSpeed);
     }
   }
-  
-  void mouseWheel(MouseEvent event){
-      float scrolled = event.getCount();
-      PVector zmoved = PVector.mult(forward, moveSpeed * 1/frameRate * scrolled * -1);
-      position.add(zmoved);
-  }
-  
-  boolean rotation;
-  Vec2 rotationStartPos;
-  Vec2 rotationEndPos;
-  
-  boolean translation;
-  
   
   // only necessary to change if you want different start position, orientation, or speeds
   PVector position;
@@ -155,6 +123,7 @@ class Camera
   float phi;
   float moveSpeed;
   float turnSpeed;
+  float boostSpeed;
   
   // probably don't need / want to change any of the below variables
   float fovy;
@@ -165,7 +134,5 @@ class Camera
   PVector positiveMovement;
   PVector negativeTurn;
   PVector positiveTurn;
-  PVector forward;
-  PVector up;
-  PVector right;
+  boolean shiftPressed;
 };

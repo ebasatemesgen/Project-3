@@ -3,7 +3,7 @@ import java.util.HashSet;
 public class PRM {
     public Node[] nodes = new Node[200];
     public int num_nodes = 0;
-
+    float SAFE_DISTANCE_MARGIN = 20.2;
     PRM() {
     }
 
@@ -227,8 +227,9 @@ private void generate_nodes(Building[] buildings, int num_buildings) {
             // Explore neighbors
             Node currentNode = nodes[currentNodeIndex];
             for (Node neighbor : currentNode.neighbors) {
-                if (neighbor == null) continue; // Skip null neighbors
-
+                if (neighbor == null || isNodeInBuilding(neighbor) || visited[neighbor.id]) {
+                continue; // Skip invalid or visited nodes
+            }
                 int neighborIndex = neighbor.id; // Assuming each Node has a unique id
                 if (!visited[neighborIndex]) {
                     visited[neighborIndex] = true;
@@ -329,6 +330,24 @@ public void draw() {
     // Reset stroke settings
     noStroke();
 }
+
+
+private boolean isNodeInBuilding(Node node) {
+    for (Building building : buildings) {
+        // Calculate the distance from the node to the center of the building
+        float distance = dist(node.x, node.z, building.x, building.z);
+
+        // Check if the node is within or too close to the building
+        // You might need to adjust the threshold depending on your building sizes
+        float threshold = building.size_of_buildin / 2 + SAFE_DISTANCE_MARGIN; // SAFE_DISTANCE_MARGIN is a constant you define
+
+        if (distance < threshold) {
+            return true; // Node is inside or too close to the building
+        }
+    }
+    return false; // Node is not within or too close to any building
+}
+
 }
 
 
@@ -345,7 +364,10 @@ public boolean isCollisionLikely(int carIndex) {
         // Check if paths intersect
         for (Integer currentNodeIndex : currentPath) {
             if (otherPath.contains(currentNodeIndex)) {
+               System.out.println("Path intersect");
                 return true; // Paths intersect, potential collision
+                
+               
             }
         }
     }

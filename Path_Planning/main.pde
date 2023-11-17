@@ -27,14 +27,14 @@ Building[] buildings = new Building[number_building];
 Camera camera;
 
 void setup() {
-    size(1000, 1000, P3D);
-    camera = new Camera();
-    frameRate(60);
+    size(1400, 1000, P3D);
+  
+
     cols = w / scl;
     rows = h / scl;
     terrainLeft = new float[cols][rows];
 
-
+    camera = new Camera();
     // Initialize goal, car, and PRM
     initEnvironment();  
     // Initialize buildings
@@ -105,7 +105,7 @@ void draw() {
             background(255, 178,123);           
       
             //
-             camera.update(dt);
+             camera.Update(dt);
             // Update car and draw environment
             updateAndDrawEnvironment(dt);
             //if (followCar) {
@@ -163,15 +163,17 @@ void updateAndDrawEnvironment(float deltaTime) {
         goals[i].draw();
     }
     
-    for (int i = 0; i < numCars; i++) {
-        if (isCollisionLikely(i)) {
-                for (int carIndex = 0; carIndex < numCars; carIndex++) {
-                    AutoVehicle car = cars[carIndex];
-                    AutoComponent goal = car.goal;
-                    prm.recalculatePath(car, goal, carIndex);
-                }
-        }
-    }
+    
+    //// This was supposed to help me avoid collision but logic not working
+    //for (int i = 0; i < numCars; i++) {
+    //    if (isCollisionLikely(i)) {
+    //            for (int carIndex = 0; carIndex < numCars; carIndex++) {
+    //                AutoVehicle car = cars[carIndex];
+    //                AutoComponent goal = car.goal;
+    //                prm.recalculatePath(car, goal, carIndex);
+    //            }
+    //    }
+    //}
 }
 
       
@@ -276,17 +278,4 @@ void mousePressed() {
         //    prm.recalculatePath(car, goal);
         //}
     }
-}
-
-
-void mouseReleased() {
-    camera.mouseReleased(); 
-}
-
-void mouseDragged() {
-    camera.mouseDragged(); 
-}
-
-void mouseWheel(MouseEvent event) {
-    camera.mouseWheel(event);
 }

@@ -1,9 +1,3 @@
-// Created for CSCI 5611 by Liam Tyler
-
-// WASD keys move the camera relative to its current orientation
-// Arrow keys rotate the camera's orientation
-// Holding shift boosts the move speed
-
 class Camera
 {
   Camera()
